@@ -1,11 +1,25 @@
 const express = require('express');
 const cors = require('cors');
-const { search, song_url_v1, song_detail, lyric_new } = require('NeteaseCloudMusicApi');
+const { search, song_url_v1, song_detail, lyric_new, register_anonimous } = require('NeteaseCloudMusicApi');
 
 const app = express();
 app.use(cors());
-
 const PORT = process.env.PORT || 3000;
+
+// 全局匿名 cookie
+let anonCookie = '';
+
+async function initAnon() {
+  try {
+    const r = await register_anonimous();
+    if (r.body.cookie) {
+      anonCookie = r.body.cookie;
+      console.log('匿名登录成功');
+    }
+  } catch (e) {
+    console.error('匿名登录失败:', e.message);
+  }
+}
 
 // 健康检查
 app.get('/', (req, res) => {
@@ -17,7 +31,7 @@ app.get('/search', async (req, res) => {
   try {
     const { keywords, limit = 20, offset = 0, type = 1 } = req.query;
     if (!keywords) return res.status(400).json({ error: 'keywords required' });
-    const result = await search({ keywords, limit: +limit, offset: +offset, type: +type });
+    const result = await search({ keywords, limit: +limit, offset: +offset, type: +type, cookie: anonCookie });
     res.json(result.body);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -29,7 +43,7 @@ app.get('/song/url', async (req, res) => {
   try {
     const { id, level = 'standard' } = req.query;
     if (!id) return res.status(400).json({ error: 'id required' });
-    const result = await song_url_v1({ id, level });
+    const result = await song_url_v1({ id, level, cookie: anonCookie });
     res.json(result.body);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -41,7 +55,7 @@ app.get('/song/detail', async (req, res) => {
   try {
     const { ids } = req.query;
     if (!ids) return res.status(400).json({ error: 'ids required' });
-    const result = await song_detail({ ids: ids.toString() });
+    const result = await song_detail({ ids: ids.toString(), cookie: anonCookie });
     res.json(result.body);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -53,14 +67,15 @@ app.get('/lyric', async (req, res) => {
   try {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: 'id required' });
-    const result = await lyric_new({ id });
+    const result = await lyric_new({ id, cookie: anonCookie });
     res.json(result.body);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// 404
 app.use((req, res) => res.status(404).json({ error: 'not found' }));
 
-app.listen(PORT, () => console.log(`API 服务运行在端口 ${PORT}`));
+initAnon().then(() => {
+  app.listen(PORT, () => console.log(`API 运行在端口 ${PORT}`));
+});
