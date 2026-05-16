@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { search, song_url_v1, song_detail, lyric_new, register_anonimous } = require('NeteaseCloudMusicApi');
+const { cloudsearch, song_url_v1, song_detail, lyric_new, register_anonimous } = require('NeteaseCloudMusicApi');
 
 const app = express();
 app.use(cors());
@@ -31,7 +31,7 @@ app.get('/search', async (req, res) => {
   try {
     const { keywords, limit = 20, offset = 0, type = 1 } = req.query;
     if (!keywords) return res.status(400).json({ error: 'keywords required' });
-    const result = await search({ keywords, limit: +limit, offset: +offset, type: +type, cookie: anonCookie });
+    const result = await cloudsearch({ keywords, limit: +limit, offset: +offset, type: +type, cookie: anonCookie });
     res.json(result.body);
   } catch (e) {
     res.status(500).json({ error: e.message });
