@@ -26,12 +26,24 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok', service: '网易云音乐 API' });
 });
 
-// 搜索
+// 搜索（自动补封面）
 app.get('/search', async (req, res) => {
   try {
     const { keywords, limit = 20, offset = 0, type = 1 } = req.query;
     if (!keywords) return res.status(400).json({ error: 'keywords required' });
     const result = await cloudsearch({ keywords, limit: +limit, offset: +offset, type: +type, cookie: anonCookie });
+    const songs = result.body.result?.songs || [];
+    // 批量获取封面
+    if (songs.length > 0) {
+      const ids = songs.map(s => s.id).join(',');
+      try {
+        const detail = await song_detail({ ids, cookie: anonCookie });
+        const detailSongs = detail.body?.songs || [];
+        const coverMap = {};
+        detailSongs.forEach(s => { if (s.al?.picUrl) coverMap[s.id] = s.al.picUrl; });
+        songs.forEach(s => { if (coverMap[s.id]) { if (!s.al) s.al = {}; s.al.picUrl = coverMap[s.id]; } });
+      } catch(e) {}
+    }
     res.json(result.body);
   } catch (e) {
     res.status(500).json({ error: e.message });
